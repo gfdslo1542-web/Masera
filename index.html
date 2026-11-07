@@ -841,4 +841,51 @@ async function importBackup(file){
       D.trophies=Object.keys(tm).map(function(k){return tm[k]});
       if(!D.player&&inc.player)D.player=inc.player;
     }
-    D.entries.sort(function(a,b){return a.createdAt-b.creat
+    D.entries.sort(function(a,b){return a.createdAt-b.createdAt});
+    if(!entryById(D.currentEntryId))D.currentEntryId=D.entries.length?D.entries[D.entries.length-1].id:null;
+    scope=null;save();toast('✅ تم الاسترجاع');render();
+  }catch(e){toast('⚠️ الملف مش نسخة صحيحة')}
+}
+
+/* ================= البداية والتشغيل ================= */
+function renderWelcome(main){
+  var w=el('div','welcome');w.appendChild(el('div','ic','⚽'));
+  w.appendChild(el('h2','','أهلًا في مسيرتي'));
+  w.appendChild(el('div','muted','سجّل إجماليات لاعبك في كارير مود FIFA 23 مرة واحدة كل موسم: أهداف كل بطولة، أسيستات، هاتريك، جزاءات وأكتر.'));
+  main.appendChild(w);
+  var card=el('div','card');
+  if(!D.player){
+    card.appendChild(el('h3','','1️⃣ بيانات لاعبك'));
+    card.appendChild(playerForm(null,function(p){D.player=p;save();render()},'التالي ←'));
+  }else{
+    card.appendChild(el('h3','','2️⃣ أول موسم'));
+    card.appendChild(seasonForm({prefill:{label:'2022/23'},btn:'يلا نبدأ 🚀',onSave:function(d){
+      var n=cleanEntry({id:uid(),label:d.label,club:d.club,country:d.country,comps:d.comps,stats:{},createdAt:Date.now(),updatedAt:Date.now()});
+      D.entries.push(n);D.currentEntryId=n.id;scope=n.label;save();render();
+    }}));
+  }
+  main.appendChild(card);
+}
+function render(){
+  var main=$('#main');main.textContent='';
+  var ready=D.player&&D.entries.length;
+  $('nav').style.display=ready?'flex':'none';
+  $('#fab').style.display=(ready&&(tab==='home'||tab==='seasons'))?'block':'none';
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('on',b.dataset.t===tab)});
+  $('#sub').textContent='';
+  if(!ready){$('#title').textContent='مسيرتي';renderWelcome(main);return}
+  var titles={home:'مسيرتي',seasons:'المواسم',stats:'الإحصائيات',trophies:'الألقاب',settings:'الإعدادات'};
+  $('#title').textContent=titles[tab];
+  var s=curEntry();$('#sub').textContent=s?('موسم '+s.label):'';
+  if(tab==='home')renderHome(main);else if(tab==='seasons')renderSeasons(main);
+  else if(tab==='stats')renderStats(main);else if(tab==='trophies')renderTrophies(main);else renderSettings(main);
+}
+document.querySelectorAll('.tab').forEach(function(b){b.onclick=function(){tab=b.dataset.t;render();window.scrollTo(0,0)}});
+$('#fab').onclick=function(){var e=curEntry();if(e)openStats(e.id)};
+render();
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}
+})();
+</script>
+</body>
+</html>
