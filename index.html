@@ -195,10 +195,14 @@ var EN={
  'عدّى {n} يوم على آخر نسخة احتياطية':'{n} days since your last backup','لسه ماعملتش نسخة احتياطية':'You haven\'t made a backup yet','اعمل نسخة':'Back up',
  '＋ موسم جديد':'＋ New season','موسم {l}':'Season {l}',
  /* إحصائيات */
+ '🏟️ حسب البطولة':'🏟️ By competition','🌍 البطولات الأوروبية والعالمية':'🌍 European & international','🛡️ المنتخب وبطولات أخرى':'🛡️ National team & other','🎖️ أرقامك مقابل الأرقام القياسية':'🎖️ Your numbers vs. records',
+ 'أحسن موسم ليك في كل بطولة مقارنةً بأعلى رقم في موسم واحد. الأرقام الجاهزة للبطولات الكبيرة، وتقدر تعدّلها أو تضيف رقم لأي بطولة.':'Your best season in each competition vs. the single-season record. Records are built in for major leagues; edit them or add one for any competition.',
+ '＋ أضف الرقم القياسي':'＋ Add record','أنت: {a} / الرقم القياسي: {b}':'You: {a} / Record: {b}','🏆 كسرت {n} رقم قياسي!':'🏆 You broke {n} record(s)!',
+ 'اسم صاحب الرقم والموسم':'Record holder and season','أكتر أهداف في موسم':'Most goals in a season','أكتر أسيستات في موسم':'Most assists in a season','صاحب الرقم':'Record holder','رجّع الرقم الأصلي':'Restore original record','حفظ':'Save',
  'الإنجازات':'Achievements','فتحت {u} من {n}':'Unlocked {u} of {n}','✔ تم':'✔ Done',
  'حدّث إحصائيات موسمك علشان تظهر هنا':'Update your season stats to see them here',
  '📅 حسب الموسم':'📅 By season','م':'GP','OVR':'OVR','النادي ':'Club','البطولة':'Competition','🌟 أفضل موسم أهداف: {l} ({n} هدف)':'🌟 Best goals season: {l} ({n} goals)',
- '🏠 حسب النادي':'🏠 By club','🏟️ حسب البطولة (كل المسيرة)':'🏟️ By competition (whole career)','🏅 أرقام قياسية':'🏅 Records',
+ '🏠 حسب النادي':'🏠 By club','🏟️ حسب البطولة (كل المسيرة)':'🏟️ By competition (whole career)','🏅 أرقامك الشخصية':'🏅 Your personal bests',
  'أكتر أهداف في بطولة واحدة ({w})':'Most goals in one competition ({w})','أكتر أسيستات في بطولة واحدة ({w})':'Most assists in one competition ({w})',
  'أكتر هاتريك في موسم ({l})':'Most hat-tricks in a season ({l})','أفضل معدل أهداف/مباراة ({l})':'Best goals/match rate ({l})','نسبة تسجيل الجزاءات':'Penalty conversion','عدد المواسم / الأندية':'Seasons / clubs',
  '🎖️ الإنجازات':'🎖️ Achievements',
@@ -309,7 +313,7 @@ var FL={apps:'👟 مباريات',goals:'⚽ أهداف',assists:'🅰️ أس�
 function zero(){return {apps:0,goals:0,assists:0,motm:0,hat:0,pkS:0,pkM:0,fk:0}}
 
 /* ================= البيانات ================= */
-function blank(){return {v:2,player:null,entries:[],trophies:[],currentEntryId:null}}
+function blank(){return {v:2,player:null,entries:[],trophies:[],currentEntryId:null,records:{}}}
 function cleanStats(s){
   var r=zero();
   if(s&&typeof s==='object')FIELDS.forEach(function(k){r[k]=num(s[k],0)});
@@ -363,6 +367,15 @@ function convertV1(j){
   var tr=(Array.isArray(j.trophies)?j.trophies:[]).map(function(x){return x?cleanTrophy({id:x.id,entryId:x.seasonId,comp:x.comp,note:x.note,createdAt:x.createdAt}):null}).filter(Boolean);
   return {v:2,player:cleanPlayer(j.player),entries:entries,trophies:tr,currentEntryId:typeof j.currentSeasonId==='string'?j.currentSeasonId:null};
 }
+function cleanRecords(r){
+  var o={};if(!r||typeof r!=='object')return o;
+  Object.keys(r).slice(0,300).forEach(function(k){
+    var x=r[k];if(!x||typeof x!=='object')return;
+    var g=Math.round(+x.goals),a=Math.round(+x.assists);
+    var rec={goals:g>0&&g<1000?g:0,assists:a>0&&a<1000?a:0,who:typeof x.who==='string'?x.who.slice(0,60):''};
+    if(rec.goals||rec.assists)o[String(k).slice(0,80)]=rec;
+  });return o;
+}
 var migrated=false;
 function load(){
   try{
@@ -373,6 +386,7 @@ function load(){
         var b=blank();b.player=d.player||null;b.currentEntryId=d.currentEntryId||null;
         b.entries=(Array.isArray(d.entries)?d.entries:[]).map(cleanEntry).filter(Boolean);
         b.trophies=(Array.isArray(d.trophies)?d.trophies:[]).map(cleanTrophy).filter(Boolean);
+        b.records=cleanRecords(d.records);
         return b;
       }
     }
@@ -783,6 +797,56 @@ function simpleTable(head,rows){
   rows.forEach(function(r){var tr=document.createElement('tr');r.forEach(function(v,i){var td=document.createElement('td');td.textContent=v;if(i===0)td.className='nm';tr.appendChild(td)});tb.appendChild(tr)});
   return tb;
 }
+
+var REC={
+ 'Premier League':{g:[36,'Erling Haaland','2022/23'],a:[20,'Henry / De Bruyne','2002/03 · 2019/20']},
+ 'EFL Championship':{g:[43,'Aleksandar Mitrović','2021/22']},
+ 'LaLiga Santander':{g:[50,'Lionel Messi','2011/12'],a:[21,'Lionel Messi','2019/20']},
+ 'Bundesliga':{g:[41,'Robert Lewandowski','2020/21'],a:[21,'Thomas Müller','2019/20']},
+ 'Serie A TIM':{g:[36,'Higuaín / Immobile','2015/16 · 2019/20']},
+ 'Ligue 1 Uber Eats':{g:[44,'Josip Skoblar','1970/71']},
+ 'MBS Pro League':{g:[35,'Aleksandar Mitrović','2023/24']},
+ 'Major League Soccer':{g:[34,'Carlos Vela','2019']},
+ 'UEFA Champions League':{g:[17,'Cristiano Ronaldo','2013/14']}
+};
+function recOf(name){
+  var u=(D.records||{})[name],b=REC[name]||{},o={g:null,a:null,who:'',custom:!!u};
+  if(b.g)o.g=b.g[0];if(b.a)o.a=b.a[0];
+  var parts=[];if(b.g)parts.push('⚽ '+b.g[1]+' ('+b.g[2]+')');if(b.a)parts.push('🅰️ '+b.a[1]+' ('+b.a[2]+')');o.who=parts.join(' • ');
+  if(u){if(u.goals)o.g=u.goals;if(u.assists)o.a=u.assists;if(u.who)o.who=u.who}
+  return o;
+}
+function groupComps(names){
+  var cmap={},eu={};
+  COUNTRIES.forEach(function(c){c.leagues.concat(c.cups).forEach(function(n){cmap[n]=c})});
+  EURO.forEach(function(g){g.items.forEach(function(it){eu[it[0]]=1})});
+  var groups=[],byC={},euro=[],other=[];
+  COUNTRIES.forEach(function(c){var g={title:c.f+' '+t(c.ar),list:[],o:c};byC[c.id]=g;groups.push(g)});
+  names.forEach(function(n){
+    if(cmap[n]){var c=cmap[n],g=byC[c.id],i=c.leagues.indexOf(n);g.list.push({n:n,r:i>=0?i:100+c.cups.indexOf(n)})}
+    else if(eu[n])euro.push(n);else other.push(n);
+  });
+  var out=[];
+  groups.forEach(function(g){if(g.list.length){g.list.sort(function(a,b){return a.r-b.r});out.push({title:g.title,names:g.list.map(function(x){return x.n})})}});
+  if(euro.length)out.push({title:t('🌍 البطولات الأوروبية والعالمية'),names:euro});
+  if(other.length)out.push({title:t('🛡️ المنتخب وبطولات أخرى'),names:other});
+  return out;
+}
+function openRecEdit(name){
+  var u=(D.records||{})[name]||{},r=recOf(name),w=el('div');
+  var g=mkInput('number',u.goals||r.g||'',''),a=mkInput('number',u.assists||r.a||'',''),who=mkInput('text',u.who||r.who||'',t('اسم صاحب الرقم والموسم'));
+  w.appendChild(field(t('أكتر أهداف في موسم'),g));w.appendChild(field(t('أكتر أسيستات في موسم'),a));w.appendChild(field(t('صاحب الرقم'),who));
+  var b=el('button','btn p',t('حفظ'));
+  b.onclick=function(){
+    D.records=D.records||{};
+    var o=cleanRecords({x:{goals:g.value,assists:a.value,who:who.value}}).x;
+    if(o)D.records[name]=o;else delete D.records[name];
+    save();closeSheet();render();
+  };
+  w.appendChild(b);
+  if((D.records||{})[name]){var d=el('button','btn',t('رجّع الرقم الأصلي'));d.onclick=function(){delete D.records[name];save();closeSheet();render()};w.appendChild(d)}
+  openSheet(name,w);
+}
 function renderStats(main){
   var allRows=rowsOf(D.entries),all=agg(allRows);all.trophies=D.trophies.length;
   if(!all.apps&&!all.goals&&!all.assists){var e=el('div','empty');e.appendChild(el('div','ic','📊'));e.appendChild(el('div','',t('حدّث إحصائيات موسمك علشان تظهر هنا')));main.appendChild(e)}
@@ -811,15 +875,19 @@ function renderStats(main){
     cc.appendChild(simpleTable([t('النادي'),t('م'),'⚽','🅰️','⭐'],co.map(function(k){var a=agg(rowsOf(clubs[k]));return [k,a.apps,a.goals,a.assists,a.motm]})));
     main.appendChild(cc);
   }
-  var pc=perComp(allRows);
+  var pc=perComp(allRows),pmap={};
+  pc.forEach(function(x){pmap[x.name]=x});
   if(pc.length){
-    var bc=el('div','card');bc.appendChild(el('h3','',t('🏟️ حسب البطولة (كل المسيرة)')));
-    bc.appendChild(simpleTable([t('البطولة'),t('م'),'⚽','🅰️','⭐'],pc.map(function(x){return [x.name,x.apps,x.goals,x.assists,x.motm]})));
-    main.appendChild(bc);
+    var gr=groupComps(pc.map(function(x){return x.name}));
+    gr.forEach(function(g,gi){
+      var bc=el('div','card');bc.appendChild(el('h3','',(gi===0?t('🏟️ حسب البطولة')+' — ':'')+g.title));
+      bc.appendChild(simpleTable([t('البطولة'),t('م'),'⚽','🅰️','⭐'],g.names.map(function(n){var x=pmap[n];return [n,x.apps,x.goals,x.assists,x.motm]})));
+      main.appendChild(bc);
+    });
   }
 
   if(all.apps||all.goals){
-    var rec=el('div','card');rec.appendChild(el('h3','',t('🏅 أرقام قياسية')));
+    var rec=el('div','card');rec.appendChild(el('h3','',t('🏅 أرقامك الشخصية')));
     var R=function(l,v){var r=el('div','rec');r.appendChild(el('span','',l));r.appendChild(el('b','',v));rec.appendChild(r)};
     var bg=null,ba=null;
     allRows.forEach(function(x){
@@ -838,15 +906,36 @@ function renderStats(main){
     main.appendChild(rec);
   }
 
-  var ac=el('div','card');ac.appendChild(el('h3','',t('🎖️ الإنجازات')));
-  var g=el('div','ach'),un=0;
-  ACH.forEach(function(x){
-    var cur=all[x[2]]||0,on=cur>=x[3];if(on)un++;
-    var a=el('div','a'+(on?' on':''));
-    a.appendChild(el('div','ai',x[0]));a.appendChild(el('div','at',t(x[1])));
-    a.appendChild(el('div','ap',on?t('✔ تم'):Math.min(cur,x[3])+' / '+x[3]));g.appendChild(a);
-  });
-  ac.appendChild(el('div','muted small',t('فتحت {u} من {n}',{u:un,n:ACH.length})));ac.appendChild(g);main.appendChild(ac);
+  if(pc.length){
+    var best={};
+    allRows.forEach(function(x){var b=best[x.comp]||(best[x.comp]={g:0,gl:'',a:0,al:''});
+      var lb=x.entry.label+(x.entry.club?' — '+x.entry.club:'');
+      if(x.goals>b.g){b.g=x.goals;b.gl=lb}if(x.assists>b.a){b.a=x.assists;b.al=lb}});
+    var rc=el('div','card');rc.appendChild(el('h3','',t('🎖️ أرقامك مقابل الأرقام القياسية')));
+    rc.appendChild(el('div','muted small',t('أحسن موسم ليك في كل بطولة مقارنةً بأعلى رقم في موسم واحد. الأرقام الجاهزة للبطولات الكبيرة، وتقدر تعدّلها أو تضيف رقم لأي بطولة.')));
+    var broken=0;
+    groupComps(pc.map(function(x){return x.name})).forEach(function(g){
+      rc.appendChild(el('div','small nm',g.title)).style.marginTop='14px';
+      g.names.forEach(function(n){
+        var r=recOf(n),b=best[n]||{g:0,a:0},blk=el('div','');blk.style.cssText='padding:8px 0;border-bottom:1px solid var(--line)';
+        var hd=el('div','rec');hd.appendChild(el('b','',n));
+        var eb=el('button','',r.g||r.a?'✎':t('＋ أضف الرقم القياسي'));eb.style.cssText='background:none;border:0;color:var(--accent);font-size:13px;white-space:normal';
+        eb.onclick=function(){openRecEdit(n)};hd.appendChild(eb);blk.appendChild(hd);
+        [['⚽',b.g,b.gl,r.g],['🅰️',b.a,b.al,r.a]].forEach(function(m){
+          if(!m[3])return;
+          var line=el('div','rec');line.style.border='0';line.style.padding='2px 0';
+          var isB=m[1]>m[3],eq=m[1]===m[3]&&m[1]>0;if(isB)broken++;
+          line.appendChild(el('span','',m[0]+' '+t('أنت: {a} / الرقم القياسي: {b}',{a:m[1],b:m[3]})+(isB?' 🏆':eq?' 🤝':'')));
+          line.appendChild(el('b','',Math.min(100,Math.round(m[1]/m[3]*100))+'%'));blk.appendChild(line);
+          var bar=el('div','bar');var fi=document.createElement('i');fi.style.width=Math.min(100,m[1]/m[3]*100)+'%';bar.appendChild(fi);blk.appendChild(bar);
+        });
+        if(r.who)blk.appendChild(el('div','muted small',r.who)).style.marginTop='4px';
+        rc.appendChild(blk);
+      });
+    });
+    if(broken)rc.insertBefore(el('div','nm',t('🏆 كسرت {n} رقم قياسي!',{n:broken})),rc.children[1]);
+    main.appendChild(rc);
+  }
 }
 
 function renderTrophies(main){
@@ -941,7 +1030,7 @@ function renderSettings(main){
 
 /* ================= نسخ احتياطي ================= */
 async function exportBackup(share){
-  var data={app:'masera-fifa23',version:2,exportedAt:Date.now(),player:D.player,entries:D.entries,trophies:D.trophies,currentEntryId:D.currentEntryId};
+  var data={app:'masera-fifa23',version:2,exportedAt:Date.now(),player:D.player,entries:D.entries,trophies:D.trophies,currentEntryId:D.currentEntryId,records:D.records};
   var blob=new Blob([JSON.stringify(data,null,1)],{type:'application/json'});
   var d=new Date();
   var name='masera-backup-'+d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'_'+p2(d.getHours())+'-'+p2(d.getMinutes())+'.json';
@@ -962,7 +1051,7 @@ async function importBackup(file){
     var inc;
     if(j.version===1||Array.isArray(j.seasons))inc=convertV1(j);
     else inc={player:cleanPlayer(j.player),entries:(Array.isArray(j.entries)?j.entries:[]).map(cleanEntry).filter(Boolean),
-      trophies:(Array.isArray(j.trophies)?j.trophies:[]).map(cleanTrophy).filter(Boolean),currentEntryId:typeof j.currentEntryId==='string'?j.currentEntryId:null};
+      trophies:(Array.isArray(j.trophies)?j.trophies:[]).map(cleanTrophy).filter(Boolean),currentEntryId:typeof j.currentEntryId==='string'?j.currentEntryId:null,records:cleanRecords(j.records)};
     if(!inc.entries.length){toast(t('الملف فاضي أو مش نسخة صحيحة'));return}
     var ch=await ask(t('لقيت في النسخة: {e} فترة (موسم/نادي)، {t} لقب.\nتعمل إيه؟',{e:inc.entries.length,t:inc.trophies.length}),[
       {label:t('دمج مع الموجود (الأكثر أمانًا)'),value:'merge',primary:true},
@@ -970,7 +1059,7 @@ async function importBackup(file){
       {label:t('إلغاء'),value:null}]);
     if(!ch)return;
     if(ch==='replace'){
-      D={v:2,player:inc.player||D.player,entries:inc.entries,trophies:inc.trophies,currentEntryId:inc.currentEntryId};
+      D={v:2,player:inc.player||D.player,entries:inc.entries,trophies:inc.trophies,currentEntryId:inc.currentEntryId,records:inc.records||{}};
     }else{
       var map={};D.entries.forEach(function(e){map[e.id]=e});
       inc.entries.forEach(function(e){var o=map[e.id];if(!o||e.updatedAt>o.updatedAt)map[e.id]=e});
@@ -978,6 +1067,7 @@ async function importBackup(file){
       var tm={};D.trophies.forEach(function(x){tm[x.id]=x});inc.trophies.forEach(function(x){if(!tm[x.id])tm[x.id]=x});
       D.trophies=Object.keys(tm).map(function(k){return tm[k]});
       if(!D.player&&inc.player)D.player=inc.player;
+      D.records=D.records||{};Object.keys(inc.records||{}).forEach(function(k){if(!D.records[k])D.records[k]=inc.records[k]});
     }
     D.entries.sort(function(a,b){return a.createdAt-b.createdAt});
     if(!entryById(D.currentEntryId))D.currentEntryId=D.entries.length?D.entries[D.entries.length-1].id:null;
