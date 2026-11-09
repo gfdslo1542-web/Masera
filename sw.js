@@ -1,6 +1,6 @@
 // Service worker لمسيرتي: بيخلي التطبيق يشتغل من غير نت.
 // لو عدّلت أي ملف بعد كده غيّر رقم النسخة تحت (v1 -> v2).
-const CACHE = 'masera-v5';
+const CACHE = 'masera-v6';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
